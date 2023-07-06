@@ -1,0 +1,24 @@
+name: Trunk
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version: [14.21.0, 16, 18]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.version }}
+          cache: 'npm'
+      - run: node -v
+      - run: npm install
+      - run: npm run lint
+      - run: npm test
+      
