@@ -168,6 +168,8 @@ describe(`error handler`, () => {
     [{ name: `Jim` }, `Missing email`],
     [{ email: `jim@domain.com` }, `Missing name`],
     [{ name: `Jim`, email: `jim` }, `Invalid email`],
+    [{ name: 123, email: `jim@domain.com` }, `Name must be a string`],
+    [{ name: `Jim`, email: 456 }, `Email must be a string`],
   ])(`POST /users`, (form, error) => {
     it(`should throw error if form is incomplete or invalid`, async () => {
       await api.post(`/users`).send(form)

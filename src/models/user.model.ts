@@ -44,14 +44,9 @@ export const createUser = (form: UserForm) => {
   if (!(`email` in form))
     throw new FormError(`Missing email`)
   
-  const trimmedForm = trimUserForm(form) as UserForm
-  
-  if (!isValidEmail(trimmedForm.email))
-    throw new FormError(`Invalid email`)
-  
   const user = {
     id: computeUserId(),
-    ...trimmedForm,
+    ...preprocessUserForm(form),
   }
   
   USER_LIST.push(user)
@@ -70,27 +65,36 @@ export const deleteUser = (id: string) => {
  * @param form
  */
 export const partialUpdateUser = (id: string, form: Partial<UserForm>) => {
-  const user = getUser(id)
-  Object.assign(user, trimUserForm(form))
+  const user = getUser(id) as User
+  Object.assign(user, preprocessUserForm(form, user.email))
   return user
 }
 
 /**
- * Simple email validation.
+ * Preprocesses the user form by converting the fields to string,
+ * trimming the name and email, and validating the email.
+ * @param form
  * @param email
  */
-export const isValidEmail = (email: string) => {
-  return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/.test(email.toUpperCase())
-}
-
-/**
- * Removes leading and trailing spaces from the name and email, if any.
- * Returns a new object.
- * @param form
- */
-export const trimUserForm = (form: Partial<UserForm>): UserForm | Partial<UserForm> => {
-  const trimmedForm = {} as Partial<UserForm>
-  if (form.name) trimmedForm.name = form.name.trim()
-  if (form.email) trimmedForm.email = form.email.trim()
-  return trimmedForm
+export const preprocessUserForm = <T extends UserForm | Partial<UserForm>>(form: T, email?: string): T => {
+  const tempForm = {} as T
+  
+  // Validate that the form fields are strings
+  if (form.name && typeof form.name !== `string`)
+    throw new FormError(`Name must be a string`)
+  if (form.email && typeof form.email !== `string`)
+    throw new FormError(`Email must be a string`)
+  
+  // Trim the form fields
+  if (form.name) tempForm.name = form.name.trim()
+  if (form.email) tempForm.email = form.email.trim()
+  
+  // Validate the email
+  const tempEmail = tempForm.email || email
+  if (!tempEmail)
+    throw new Error(`Either form.email or email must be provided`)
+  if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/.test(tempEmail.toUpperCase()))
+    throw new FormError(`Invalid email`)
+  
+  return tempForm
 }

@@ -6,9 +6,8 @@ import {
   deleteUser,
   getAllUsers,
   getUser,
-  isValidEmail,
   partialUpdateUser,
-  trimUserForm,
+  preprocessUserForm,
   User,
   USER_LIST,
 } from './user.model'
@@ -115,23 +114,19 @@ describe(`createUser`, () => {
     ).toThrow(new FormError(`Missing email`))
   })
   
-  it(`should throw FormError if 'isValidEmail' returns false`, () => {
-    jest.spyOn(userModel, `isValidEmail`).mockReturnValue(false)
-    
-    expect(() => createUser(form))
-      .toThrow(new FormError(`Invalid email`))
-  })
-  
-  it(`should trim name and email`, () => {
-    const form = { name: `  Jim  `, email: `  jim@domain.com  ` },
-      spy = jest.spyOn(userModel, `trimUserForm`)
+  it(`should use the form returned by 'preprocessUserForm'`, () => {
+    const spy = jest.spyOn(userModel, `preprocessUserForm`)
+      .mockImplementation(() => ({
+        name: `Janice`,
+        email: `janice@domain.com`,
+      }))
     
     createUser(form)
     const user = USER_LIST[USER_LIST.length - 1] as User
     
-    expect(spy).toHaveBeenCalledWith(form)
-    expect(user.name).toBe(`Jim`)
-    expect(user.email).toBe(`jim@domain.com`)
+    expect(spy).toHaveBeenCalled()
+    expect(user.name).toBe(`Janice`)
+    expect(user.email).toBe(`janice@domain.com`)
   })
 })
 
@@ -165,52 +160,62 @@ describe(`partialUpdateUser`, () => {
     ).toThrow(NotFoundError)
   })
   
-  it(`should trim name and/or email`, () => {
-    const form = { name: `  Jack  ` },
-      spy = jest.spyOn(userModel, `trimUserForm`)
+  it(`should use the form returned by 'preprocessUserForm'`, () => {
+    const spy = jest.spyOn(userModel, `preprocessUserForm`)
+      .mockImplementation(() => ({ email: `janice@domain.com` }))
     
     partialUpdateUser(`1`, form)
-    const user = USER_LIST[1] as User
     
-    expect(spy).toHaveBeenCalledWith(form)
-    expect(user).toEqual({
-      ...testUsers[1],
-      name: `Jack`,
-    })
+    expect(spy).toHaveBeenCalled()
+    expect(USER_LIST[1].email).toBe(`janice@domain.com`)
   })
 })
 
-describe(`isValidEmail`, () => {
-  it.each([
-    [true, `jim@company.tech`],
-    [true, `jim@company.com`],
-    [false, `jim@domain`],
-    [false, `jimmy`],
-    [false, `jim@@company.com`],
-  ])(`should return accordingly if valid or invalid email`, (isValid, email) => {
-    const bool = isValidEmail(email)
-    
-    expect(bool).toBe(isValid)
+describe(`preprocessUserForm`, () => {
+  it(`should throw FormError if name isn't a string`, () => {
+    expect(() =>
+      preprocessUserForm({ name: 123, email: `` } as never),
+    ).toThrow(new FormError(`Name must be a string`))
   })
-})
-
-describe(`trimUserForm`, () => {
+  
+  it(`should throw FormError if email isn't a string`, () => {
+    expect(() =>
+      preprocessUserForm({ name: ``, email: 456 } as never),
+    ).toThrow(new FormError(`Email must be a string`))
+  })
+  
   it(`should trim name and email`, () => {
     const form = { name: `  Jane  `, email: `  jane@domain.com   ` },
       
-      trimmed = trimUserForm(form)
+      newForm = preprocessUserForm(form)
     
-    expect(trimmed).toEqual({
+    expect(newForm).toEqual({
       name: `Jane`,
       email: `jane@domain.com`,
     })
   })
   
-  it(`should allow partial form`, () => {
-    const form = { name: `  Jack  ` },
+  it.each([
+    [`jim@domain`],
+    [`jimmy`],
+    [`jim@@company.com`],
+  ])(`should throw FormError if email is invalid`, (email) => {
+    expect(() =>
+      preprocessUserForm({ name: `Jim`, email } as never),
+    ).toThrow(new FormError(`Invalid email`))
+  })
+  
+  it(`should throw Error if both form.email and the 'email' param are missing`, () => {
+    expect(() =>
+      preprocessUserForm({ name: `Jim` } as never),
+    ).toThrow(new Error(`Either form.email or email must be provided`))
+  })
+  
+  it(`should accept partial form`, () => {
+    const form = { email: `jack@domain.com` },
       
-      trimmed = trimUserForm(form)
+      newForm = preprocessUserForm(form)
     
-    expect(trimmed).toEqual({ name: `Jack` })
+    expect(newForm).toEqual({ email: `jack@domain.com` })
   })
 })
