@@ -8,6 +8,7 @@ import {
   getUser,
   isValidEmail,
   partialUpdateUser,
+  trimUserForm,
   User,
   USER_LIST,
 } from './user.model'
@@ -122,13 +123,13 @@ describe(`createUser`, () => {
   })
   
   it(`should trim name and email`, () => {
-    createUser({
-      name: `  Jim  `,
-      email: `  jim@domain.com  `,
-    })
+    const form = { name: `  Jim  `, email: `  jim@domain.com  ` },
+      spy = jest.spyOn(userModel, `trimUserForm`)
     
+    createUser(form)
     const user = USER_LIST[USER_LIST.length - 1] as User
     
+    expect(spy).toHaveBeenCalledWith(form)
     expect(user.name).toBe(`Jim`)
     expect(user.email).toBe(`jim@domain.com`)
   })
@@ -163,6 +164,20 @@ describe(`partialUpdateUser`, () => {
       partialUpdateUser(`83`, form),
     ).toThrow(NotFoundError)
   })
+  
+  it(`should trim name and/or email`, () => {
+    const form = { name: `  Jack  ` },
+      spy = jest.spyOn(userModel, `trimUserForm`)
+    
+    partialUpdateUser(`1`, form)
+    const user = USER_LIST[1] as User
+    
+    expect(spy).toHaveBeenCalledWith(form)
+    expect(user).toEqual({
+      ...testUsers[1],
+      name: `Jack`,
+    })
+  })
 })
 
 describe(`isValidEmail`, () => {
@@ -176,5 +191,26 @@ describe(`isValidEmail`, () => {
     const bool = isValidEmail(email)
     
     expect(bool).toBe(isValid)
+  })
+})
+
+describe(`trimUserForm`, () => {
+  it(`should trim name and email`, () => {
+    const form = { name: `  Jane  `, email: `  jane@domain.com   ` },
+      
+      trimmed = trimUserForm(form)
+    
+    expect(trimmed).toEqual({
+      name: `Jane`,
+      email: `jane@domain.com`,
+    })
+  })
+  
+  it(`should allow partial form`, () => {
+    const form = { name: `  Jack  ` },
+      
+      trimmed = trimUserForm(form)
+    
+    expect(trimmed).toEqual({ name: `Jack` })
   })
 })

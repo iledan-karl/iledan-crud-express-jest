@@ -33,14 +33,6 @@ export const getUser = (id: string, useIdx = false) => {
 export const getAllUsers = () => USER_LIST
 
 /**
- * Simple email validation.
- * @param email
- */
-export const isValidEmail = (email: string) => {
-  return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/.test(email.toUpperCase())
-}
-
-/**
  * Creates a new user, adds it to the list, and returns it.
  * Throws an error if the form has a missing or incorrect field.
  * Trims the name and email.
@@ -52,10 +44,7 @@ export const createUser = (form: UserForm) => {
   if (!(`email` in form))
     throw new FormError(`Missing email`)
   
-  const trimmedForm = {
-    name: form.name.trim(),
-    email: form.email.trim(),
-  }
+  const trimmedForm = trimUserForm(form) as UserForm
   
   if (!isValidEmail(trimmedForm.email))
     throw new FormError(`Invalid email`)
@@ -82,6 +71,26 @@ export const deleteUser = (id: string) => {
  */
 export const partialUpdateUser = (id: string, form: Partial<UserForm>) => {
   const user = getUser(id)
-  Object.assign(user, form)
+  Object.assign(user, trimUserForm(form))
   return user
+}
+
+/**
+ * Simple email validation.
+ * @param email
+ */
+export const isValidEmail = (email: string) => {
+  return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/.test(email.toUpperCase())
+}
+
+/**
+ * Removes leading and trailing spaces from the name and email, if any.
+ * Returns a new object.
+ * @param form
+ */
+export const trimUserForm = (form: Partial<UserForm>): UserForm | Partial<UserForm> => {
+  const trimmedForm = {} as Partial<UserForm>
+  if (form.name) trimmedForm.name = form.name.trim()
+  if (form.email) trimmedForm.email = form.email.trim()
+  return trimmedForm
 }
